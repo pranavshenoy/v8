@@ -14,6 +14,37 @@
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
 
+inline std::string read_file(const std::string& path) {
+  // if (!std::filesystem::exists(path)) {
+  //   // std::cout << "ERROR! " << path << " not exist!" << std::endl;
+  //   return "";
+  // }
+  std::ifstream t(path);
+  return std::string((std::istreambuf_iterator<char>(t)),
+                     std::istreambuf_iterator<char>());
+}
+
+
+std::string getJS() {
+
+  std::string browserbench_path = "/home/pranav/WebKit/Websites/browserbench.org/";
+  std::string jetstream2_path = browserbench_path + "JetStream2.0/";
+  std::string octane_path = jetstream2_path + "Octane/";
+  std::string header = "let performance = {now() { return 0; }};";
+  std::string footer = "for(i = 0; i < 80; i++) {new Benchmark().runIteration();}";
+  std::string input = header + read_file(octane_path + "typescript-compiler.js")
+       + read_file(octane_path + "typescript-input.js")
+       + read_file(octane_path + "typescript.js")
+       + footer;
+  return input;
+}
+
+inline v8::Local<v8::String> fromString(v8::Isolate* isolate, const std::string& str) {
+  return v8::String::NewFromUtf8(isolate, str.data()).ToLocalChecked();
+}
+
+
+
 int main(int argc, char* argv[]) {
   // Initialize V8.
   v8::V8::InitializeICUDefaultLocation(argv[0]);
@@ -39,10 +70,11 @@ int main(int argc, char* argv[]) {
     // Enter the context for compiling and running the hello world script.
     v8::Context::Scope context_scope(context);
 
+
     {
       // Create a string containing the JavaScript source code.
-      v8::Local<v8::String> source =
-          v8::String::NewFromUtf8Literal(isolate, "'Hello' + ', World!'");
+      v8::Local<v8::String> source = fromString(isolate, getJS());
+      // v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, getJS());
 
       // Compile the source code.
       v8::Local<v8::Script> script =
@@ -55,44 +87,60 @@ int main(int argc, char* argv[]) {
       v8::String::Utf8Value utf8(isolate, result);
       printf("%s\n", *utf8);
     }
+    // {
+    //   // Create a string containing the JavaScript source code.
+    //   v8::Local<v8::String> source =
+    //       v8::String::NewFromUtf8Literal(isolate, "'Hello' + ', World!'");
 
-    {
-      // Use the JavaScript API to generate a WebAssembly module.
-      //
-      // |bytes| contains the binary format for the following module:
-      //
-      //     (func (export "add") (param i32 i32) (result i32)
-      //       get_local 0
-      //       get_local 1
-      //       i32.add)
-      //
-      const char csource[] = R"(
-        let bytes = new Uint8Array([
-          0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
-          0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
-          0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01,
-          0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b
-        ]);
-        let module = new WebAssembly.Module(bytes);
-        let instance = new WebAssembly.Instance(module);
-        instance.exports.add(3, 4);
-      )";
+    //   // Compile the source code.
+    //   v8::Local<v8::Script> script =
+    //       v8::Script::Compile(context, source).ToLocalChecked();
 
-      // Create a string containing the JavaScript source code.
-      v8::Local<v8::String> source =
-          v8::String::NewFromUtf8Literal(isolate, csource);
+    //   // Run the script to get the result.
+    //   v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
 
-      // Compile the source code.
-      v8::Local<v8::Script> script =
-          v8::Script::Compile(context, source).ToLocalChecked();
+    //   // Convert the result to an UTF8 string and print it.
+    //   v8::String::Utf8Value utf8(isolate, result);
+    //   printf("%s\n", *utf8);
+    // }
 
-      // Run the script to get the result.
-      v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
+    // {
+    //   // Use the JavaScript API to generate a WebAssembly module.
+    //   //
+    //   // |bytes| contains the binary format for the following module:
+    //   //
+    //   //     (func (export "add") (param i32 i32) (result i32)
+    //   //       get_local 0
+    //   //       get_local 1
+    //   //       i32.add)
+    //   //
+    //   const char csource[] = R"(
+    //     let bytes = new Uint8Array([
+    //       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+    //       0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
+    //       0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01,
+    //       0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b
+    //     ]);
+    //     let module = new WebAssembly.Module(bytes);
+    //     let instance = new WebAssembly.Instance(module);
+    //     instance.exports.add(3, 4);
+    //   )";
 
-      // Convert the result to a uint32 and print it.
-      uint32_t number = result->Uint32Value(context).ToChecked();
-      printf("3 + 4 = %u\n", number);
-    }
+    //   // Create a string containing the JavaScript source code.
+    //   v8::Local<v8::String> source =
+    //       v8::String::NewFromUtf8Literal(isolate, csource);
+
+    //   // Compile the source code.
+    //   v8::Local<v8::Script> script =
+    //       v8::Script::Compile(context, source).ToLocalChecked();
+
+    //   // Run the script to get the result.
+    //   v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
+
+    //   // Convert the result to a uint32 and print it.
+    //   uint32_t number = result->Uint32Value(context).ToChecked();
+    //   printf("3 + 4 = %u\n", number);
+    // }
   }
 
   // Dispose the isolate and tear down V8.
