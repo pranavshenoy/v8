@@ -989,6 +989,15 @@ class Heap {
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
+  V8_EXPORT_PRIVATE bool CollectGarbageAux(
+      AllocationSpace space, GarbageCollectionReason gc_reason,
+      const GCCallbackFlags gc_callback_flags);
+
+  V8_EXPORT_PRIVATE void DumpStats(std::vector<size_t> result);
+  V8_EXPORT_PRIVATE void WriteStat(std::string result);
+
+  V8_EXPORT_PRIVATE std::vector<size_t> GetCurrStatus();
+
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
       int flags, GarbageCollectionReason gc_reason,

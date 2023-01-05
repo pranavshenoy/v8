@@ -53,9 +53,13 @@ bool SemiSpace::EnsureCurrentCapacity() {
     }
 
     DCHECK_LE(actual_pages, expected_pages);
-
+    // std::cout<<"EnsureCurrentCapacity: Target_capacity: "<<target_capacity_<<" expected_pages: "<<expected_pages<<" actual_pages: "<<actual_pages<<" committed_bytes: "<<committed_<<"\n";
+    // if(current_page) {
+      
+    // }
     // Free all overallocated pages which are behind current_page.
     while (current_page) {
+      
       DCHECK_EQ(actual_pages, expected_pages);
       MemoryChunk* next_current = current_page->list_node().next();
       // Promoted pages contain live objects and should not be discarded.
@@ -84,7 +88,9 @@ bool SemiSpace::EnsureCurrentCapacity() {
           MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
       if (current_page == nullptr) return false;
       DCHECK_NOT_NULL(current_page);
+      // size_t tmp_size = committed_;
       AccountCommitted(Page::kPageSize);
+      // std::cout<<"Shrinking young gen size from: "<<tmp_size<<" to "<<committed_<<"\n";
       IncrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
       memory_chunk_list_.PushBack(current_page);
       marking_state->ClearLiveness(current_page);
@@ -92,6 +98,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       heap()->CreateFillerObjectAt(current_page->area_start(),
                                    static_cast<int>(current_page->area_size()));
     }
+    // std::cout<<"Expanded young gen size: "<<committed_<<"\n";
     DCHECK_EQ(expected_pages, actual_pages);
   }
   return true;
@@ -100,6 +107,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
+//check
 void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
   DCHECK_GE(maximum_capacity, static_cast<size_t>(Page::kPageSize));
   minimum_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
@@ -138,6 +146,7 @@ bool SemiSpace::Commit() {
   }
   Reset();
   AccountCommitted(target_capacity_);
+  // std::cout<<"Expanding committed memory through commit(): "<<committed_<<"\n";
   if (age_mark_ == kNullAddress) {
     age_mark_ = first_page()->area_start();
   }
@@ -148,6 +157,7 @@ bool SemiSpace::Commit() {
 void SemiSpace::Uncommit() {
   DCHECK(IsCommitted());
   int actual_pages = 0;
+  // std::cout<<"Invoking uncommit()\n";
   while (!memory_chunk_list_.Empty()) {
     actual_pages++;
     MemoryChunk* chunk = memory_chunk_list_.front();
@@ -162,7 +172,9 @@ void SemiSpace::Uncommit() {
       static_cast<size_t>(actual_pages * Page::kPageSize);
   DCHECK_EQ(CommittedMemory(), removed_page_size);
   DCHECK_EQ(CommittedPhysicalMemory(), 0);
+  // size_t tmp_size = committed_;
   AccountUncommitted(removed_page_size);
+  // std::cout<<"Shrinking young gen size from: "<<tmp_size<<" to "<<committed_<<"\n";
   DCHECK(!IsCommitted());
 }
 
@@ -173,6 +185,7 @@ size_t SemiSpace::CommittedPhysicalMemory() const {
 }
 
 bool SemiSpace::GrowTo(size_t new_capacity) {
+  std::cout<<"GrowTo() -- shouldn't be called\n";
   if (!IsCommitted()) {
     if (!Commit()) return false;
   }
@@ -200,6 +213,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
                                  static_cast<int>(new_page->area_size()));
   }
   AccountCommitted(delta);
+  // std::cout<<"Expanded young gen size: "<<committed_<<"\n";
   target_capacity_ = new_capacity;
   return true;
 }
@@ -226,7 +240,10 @@ void SemiSpace::ShrinkTo(size_t new_capacity) {
     DCHECK(IsAligned(delta, Page::kPageSize));
     int delta_pages = static_cast<int>(delta / Page::kPageSize);
     RewindPages(delta_pages);
+    // size_t tmp_size = committed_;
+    // std::cout<<"ShrinkTo Invoked() new_capacity: "<<target_capacity_<<"\n";
     AccountUncommitted(delta);
+    
   }
   target_capacity_ = new_capacity;
 }
@@ -262,7 +279,9 @@ void SemiSpace::RemovePage(Page* page) {
     }
   }
   memory_chunk_list_.Remove(page);
+  // size_t tmp_size = committed_;
   AccountUncommitted(Page::kPageSize);
+  // std::cout<<"Shrinking young gen size from "<<tmp_size<<" to "<<committed_<<"\n";
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
@@ -276,6 +295,7 @@ void SemiSpace::PrependPage(Page* page) {
   memory_chunk_list_.PushFront(page);
   current_capacity_ += Page::kPageSize;
   AccountCommitted(Page::kPageSize);
+  // std::cout<<"Expanded young gen size: "<<committed_<<"\n";
   IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
@@ -483,9 +503,10 @@ SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
       to_space_(heap, kToSpace),
       from_space_(heap, kFromSpace) {
   DCHECK(initial_semispace_capacity <= max_semispace_capacity);
-
+  //check
   to_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
   from_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
+  std::cout<<"Initial commit: "<<to_space_.committed_<<"\n";
   if (!to_space_.Commit()) {
     V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
   }
@@ -521,17 +542,20 @@ void SemiSpaceNewSpace::Grow() {
 }
 
 void SemiSpaceNewSpace::Shrink() {
-  size_t new_capacity = std::max(InitialTotalCapacity(), 2 * Size());
-  size_t rounded_new_capacity = ::RoundUp(new_capacity, Page::kPageSize);
-  if (rounded_new_capacity < TotalCapacity()) {
-    to_space_.ShrinkTo(rounded_new_capacity);
-    // Only shrink from-space if we managed to shrink to-space.
-    if (from_space_.IsCommitted()) from_space_.Reset();
-    from_space_.ShrinkTo(rounded_new_capacity);
-  }
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-  if (!from_space_.IsCommitted()) return;
-  from_space_.Uncommit();
+  
+  // std::cout<<"Inside semispace shrink\n";
+  return;
+  // size_t new_capacity = std::max(InitialTotalCapacity(), 2 * Size());
+  // size_t rounded_new_capacity = ::RoundUp(new_capacity, Page::kPageSize);
+  // if (rounded_new_capacity < TotalCapacity()) {
+  //   to_space_.ShrinkTo(rounded_new_capacity);
+  //   // Only shrink from-space if we managed to shrink to-space.
+  //   if (from_space_.IsCommitted()) from_space_.Reset();
+  //   from_space_.ShrinkTo(rounded_new_capacity);
+  // }
+  // DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  // if (!from_space_.IsCommitted()) return;
+  // from_space_.Uncommit();
 }
 
 size_t SemiSpaceNewSpace::CommittedPhysicalMemory() const {
@@ -829,7 +853,15 @@ size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
 }
 
 void SemiSpaceNewSpace::Prologue() {
-  if (from_space_.IsCommitted() || from_space_.Commit()) return;
+  
+  if(from_space_.IsCommitted()) {
+    return;
+  } 
+  if(from_space_.Commit()) {
+    // std::cout<<"Prologue(): commit() invoked true "<<from_space_.committed_<<"\n";
+    return;
+  }
+  // if (from_space_.IsCommitted() || from_space_.Commit()) return;
 
   // Committing memory to from space failed.
   // Memory is exhausted and we will die.
@@ -858,11 +890,13 @@ void SemiSpaceNewSpace::ZapUnusedMemory() {
 void SemiSpaceNewSpace::RemovePage(Page* page) {
   DCHECK(!page->IsToPage());
   DCHECK(page->IsFromPage());
+  // std::cout<<"RemovePage: from_space\n";
   from_space().RemovePage(page);
 }
 
 void SemiSpaceNewSpace::PromotePageInNewSpace(Page* page) {
   DCHECK(page->IsFromPage());
+  // std::cout<<"PromotePageInNewSpace()\n";
   from_space_.RemovePage(page);
   to_space_.PrependPage(page);
   page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
@@ -970,6 +1004,7 @@ size_t PagedSpaceForNewSpace::AddPage(Page* page) {
 void PagedSpaceForNewSpace::RemovePage(Page* page) {
   DCHECK_LE(Page::kPageSize, current_capacity_);
   current_capacity_ -= Page::kPageSize;
+  // std::cout<<"removing pagedspace\n";
   PagedSpaceBase::RemovePage(page);
 }
 

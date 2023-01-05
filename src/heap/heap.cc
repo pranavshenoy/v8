@@ -4,6 +4,11 @@
 
 #include "src/heap/heap.h"
 
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <string>
+#include <chrono>
 #include <atomic>
 #include <cinttypes>
 #include <iomanip>
@@ -303,6 +308,7 @@ void Heap::GenerationSizesFromHeapSize(size_t heap_size,
   size_t lower = 0, upper = heap_size;
   while (lower + 1 < upper) {
     size_t old_generation = lower + (upper - lower) / 2;
+    //NOTE: 
     size_t young_generation =
         YoungGenerationSizeFromOldGenerationSize(old_generation);
     if (old_generation + young_generation <= heap_size) {
@@ -351,6 +357,7 @@ size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
   return std::min(max_size, AllocatorLimitOnMaxOldGenerationSize());
 }
 
+//young gen size
 size_t Heap::YoungGenerationSizeFromSemiSpaceSize(size_t semi_space_size) {
   return semi_space_size * (2 + kNewLargeObjectSpaceToSemiSpaceRatio);
 }
@@ -1614,9 +1621,109 @@ Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
                    heap_->SizeOfObjects());
 }
 
-bool Heap::CollectGarbage(AllocationSpace space,
+void logMessage(std::string msg) {
+  
+  std::ofstream out;
+  std::string filename = "v8-custom-log.log";
+  out.open(filename, std::ios_base::app);
+  out << msg;
+  out.close();
+}
+
+
+std::vector<size_t> Heap::GetCurrStatus() {
+
+  std::vector<size_t> result;
+
+  size_t new_lo_space_used = new_lo_space_->SizeOfObjects();
+  size_t new_lo_space_available = new_lo_space_->Available();
+  size_t new_lo_space_committed = new_lo_space_->CommittedMemory();
+  size_t new_space_used = new_space_->SizeOfObjects();
+  size_t new_space_available = new_space_->Available() ;
+  size_t new_space_committed = new_space_->CommittedMemory();
+
+  size_t total_young_committed = new_space_committed + new_lo_space_committed;
+  size_t total_young_available = new_space_available + new_lo_space_available;
+  size_t total_young_used = new_lo_space_used + new_space_used;
+  result.push_back(total_young_used);
+  result.push_back(total_young_available);
+  result.push_back(total_young_committed);
+  return result;
+}
+
+
+void Heap::WriteStat(std::string result) {
+
+    std::ofstream out;
+    std::string filename = "v8_young_gen_";
+    size_t val = initial_semispace_size_*100;
+    float initial_semi_size = (float)val / (MB * 100);
+    filename = filename.append(std::to_string(initial_semi_size)).append(".log");
+    out.open(filename, std::ios_base::app);
+    out << result;
+    out.close();
+}
+
+void Heap::DumpStats(std::vector<size_t> result) {
+
+    static std::atomic_int flag(0);
+    if(flag == 0) {
+      std::string heading = "b_initial_y_size_0\tb_max_y_size_1\tb_used_2\tb_available_3\tb_committed_4\ta_used_5\ta_available_6\ta_committed_7\ta_survived_8\ta_promoted_9\ta_copied_10\ta_time_in_ns_11\tpromotion_rate_12\n";
+      WriteStat(heading);
+      flag = 1;
+      return;
+    }
+    std::string output = "";
+    for(auto val: result) {
+        // int tmp_val = (int)val * 100;
+        // float val_round = (float)tmp_val /100 ;
+        std::string res = std::to_string(val);
+        output = output.append(res).append("\t");
+    }
+    output = output.append("\n");
+    WriteStat(output);
+}
+
+bool Heap::CollectGarbage(AllocationSpace space, GarbageCollectionReason gc_reason, const v8::GCCallbackFlags gc_callback_flags) {
+
+    const char* collector_reason = nullptr;
+    // std::cout<<"Running collect Garbage\n";
+    bool isYoung = IsYoungGenerationCollector(SelectGarbageCollector(space, &collector_reason));
+
+    std::vector<size_t> stats;
+    if(isYoung && space == NEW_SPACE) {
+      size_t initial_young_gen_size = YoungGenerationSizeFromSemiSpaceSize(initial_semispace_size_);
+      size_t max_young_gen_size =  YoungGenerationSizeFromSemiSpaceSize(max_semi_space_size_);
+      stats.push_back(initial_young_gen_size);
+      stats.push_back(max_young_gen_size);
+      std::vector<size_t> tmp = GetCurrStatus();
+      stats.insert(stats.end(), tmp.begin(), tmp.end());
+    }
+    auto base = std::chrono::system_clock::now();
+    bool result = CollectGarbageAux(space, gc_reason, gc_callback_flags);
+    auto time_in_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - base).count();
+    if(isYoung) {
+      std::vector<size_t> tmp = GetCurrStatus();
+      stats.insert(stats.end(), tmp.begin(), tmp.end());
+      size_t survived_obj_size = SurvivedYoungObjectSize();
+      size_t promotion_size = promoted_objects_size_;
+      size_t copied_size =  semi_space_copied_object_size_;
+      stats.push_back(survived_obj_size);
+      stats.push_back(promotion_size);
+      stats.push_back(copied_size);
+      stats.push_back(time_in_ns);
+      stats.push_back((int32_t)promotion_rate_);
+      DumpStats(stats);
+    }
+    // std::cout<<"Done with collectGarbage\n";
+    return result;
+}
+
+
+bool Heap::CollectGarbageAux(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
+  
   if (V8_UNLIKELY(!deserialization_complete_)) {
     // During isolate initialization heap always grows. GC is only requested
     // if a new page allocation fails. In such a case we should crash with
@@ -1625,6 +1732,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
     CHECK(always_allocate());
     FatalProcessOutOfMemory("GC during deserialization");
   }
+
+  
 
   // CollectGarbage consists of three parts:
   // 1. The prologue part which may execute callbacks. These callbacks may
@@ -2609,6 +2718,18 @@ void Heap::MarkCompactPrologue() {
   RegExpResultsCache::Clear(regexp_multiple_cache());
 
   FlushNumberStringCache();
+}
+
+void Heap::CheckNewSpaceExpansionCriteria() {
+  if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
+      survived_since_last_expansion_ > new_space_->TotalCapacity()) {
+    //PRANAV-check heuristics
+    // Grow the size of new space if there is room to grow, and enough data
+    // has survived scavenge since the last expansion.
+    new_space_->Grow();
+    survived_since_last_expansion_ = 0;
+  }
+  new_lo_space()->SetCapacity(new_space()->Capacity());
 }
 
 void Heap::Scavenge() {
@@ -4884,7 +5005,15 @@ size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
 }
 }  // anonymous namespace
 
+
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
+  
+  //Pranav - Custom Change -- Start
+    std::ifstream input_file("semispace_size.txt");
+    int semispace_size_factor = 1;
+    input_file >> semispace_size_factor;
+  //Pranav - Custom Change -- End
+
   // Initialize max_semi_space_size_.
   {
     max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
@@ -4908,6 +5037,12 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
         GenerationSizesFromHeapSize(max_heap_size, &young_generation_size,
                                     &old_generation_size);
       }
+      //printing young and old gen
+      // std::string file_out = "configuring:\n";
+      // std::ofstream out;
+      // out.open("pranav_v8_output.txt", std::ios_base::app);
+      // out << file_out;
+      // out.close();
       max_semi_space_size_ =
           SemiSpaceSizeFromYoungGenerationSize(young_generation_size);
     }
@@ -4915,11 +5050,17 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
     }
+
+    //Pranav - Custom Change -- Start
+    max_semi_space_size_ = semispace_size_factor * kMinSemiSpaceSize;
+    //Pranav - Custom Change -- End
+
+
     // TODO(dinfuehr): Rounding to a power of 2 is not longer needed. Remove it.
-    max_semi_space_size_ =
-        static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
-            static_cast<uint64_t>(max_semi_space_size_)));
-    max_semi_space_size_ = std::max({max_semi_space_size_, kMinSemiSpaceSize});
+    // max_semi_space_size_ = 
+    //     static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
+    //         static_cast<uint64_t>(max_semi_space_size_)));
+    // max_semi_space_size_ = std::max({max_semi_space_size_, kMinSemiSpaceSize});
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 
@@ -4980,6 +5121,11 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       initial_semispace_size_ =
           static_cast<size_t>(v8_flags.min_semi_space_size) * MB;
     }
+
+    //Pranav - Custom Change -- Start
+    initial_semispace_size_ = semispace_size_factor * kMinSemiSpaceSize;
+    //Pranav - Custom Change -- End
+
     initial_semispace_size_ =
         std::min(initial_semispace_size_, max_semi_space_size_);
     initial_semispace_size_ =
@@ -5552,6 +5698,15 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
   const bool has_young_gen = !v8_flags.single_generation && !IsShared();
+  //check
+  std::string output = "";
+  output = output.append("FLAG_minor_mc: ").
+                  append(std::to_string(FLAG_minor_mc)).
+                  append(" initial_semispace_size_: ").
+                  append(std::to_string(initial_semispace_size_)).
+                  append(" max_semi_space_size_").
+                  append(std::to_string(max_semi_space_size_));
+  logMessage(output);
   if (has_young_gen) {
     if (v8_flags.minor_mc) {
       space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(

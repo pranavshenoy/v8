@@ -607,7 +607,7 @@ void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
   DCHECK(state_ == PREPARE_GC);
-
+  // std::cout<<"MarkCompactCollector::CollectGarbage()\n";
   MarkLiveObjects();
   ClearNonLiveReferences();
   VerifyMarking();
@@ -1970,6 +1970,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
         page->heap()->new_space()->PromotePageInNewSpace(page);
         break;
       case NEW_TO_OLD: {
+        std::cout<<"PromotePageInNewSpace - NEW_TO_OLD\n";
         page->heap()->new_space()->PromotePageToOldSpace(page);
         break;
       }

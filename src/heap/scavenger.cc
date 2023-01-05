@@ -358,7 +358,7 @@ void ScavengerCollector::CollectGarbage() {
         });
 
     RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId].get());
-
+    
     {
       // Identify weak unmodified handles. Requires an unmodified graph.
       TRACE_GC(
@@ -690,7 +690,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
           return result;
         },
         &empty_chunks_local_);
-  }
+  } 
 
   if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {
     // The invalidated slots are not needed after old-to-new slots were
@@ -719,6 +719,7 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
   AddPageToSweeperIfNecessary(page);
 }
 
+//PRANAV Check scavenging
 void Scavenger::Process(JobDelegate* delegate) {
   ScavengeVisitor scavenge_visitor(this);
 
