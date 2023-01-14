@@ -4,7 +4,7 @@
 *.exe
 *.idb
 *.lib
-*.log
+# *.log
 *.map
 *.mk
 *.ncb

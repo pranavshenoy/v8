@@ -20,6 +20,11 @@
 #include "include/v8-container.h"
 #include "include/v8-template.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wunused-result"
+#pragma clang diagnostic ignored "-Wsign-compare"
+
 
 inline std::string read_file(const std::string& path) {
   // if (!std::filesystem::exists(path)) {
@@ -189,7 +194,7 @@ void run_acdc(const Input& input, Signal *s) {
       script->Run(context);
     }
   }
-  std::this_thread::sleep_for (std::chrono::seconds(5));
+  // std::this_thread::sleep_for (std::chrono::seconds(5));
   std::cout << "try isolate->dispose!" << std::endl;
   isolate->Dispose();
   std::cout << "isolate->dispose ok!" << std::endl;
@@ -394,3 +399,4 @@ int main(int argc, char* argv[]) {
   delete create_params.array_buffer_allocator;
   return 0;
 }
+#pragma clang diagnostic pop

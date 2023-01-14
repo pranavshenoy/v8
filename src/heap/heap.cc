@@ -1688,7 +1688,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollectionReason gc_reas
 
     const char* collector_reason = nullptr;
     // std::cout<<"Running collect Garbage\n";
-    bool isYoung = IsYoungGenerationCollector(SelectGarbageCollector(space, &collector_reason));
+    bool isYoung = IsYoungGenerationCollector(SelectGarbageCollector(space, gc_reason, &collector_reason));
 
     std::vector<size_t> stats;
     if(isYoung && space == NEW_SPACE) {
@@ -1707,7 +1707,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollectionReason gc_reas
       stats.insert(stats.end(), tmp.begin(), tmp.end());
       size_t survived_obj_size = SurvivedYoungObjectSize();
       size_t promotion_size = promoted_objects_size_;
-      size_t copied_size =  semi_space_copied_object_size_;
+      size_t copied_size =  nodes_copied_in_new_space_;
       stats.push_back(survived_obj_size);
       stats.push_back(promotion_size);
       stats.push_back(copied_size);
@@ -2720,17 +2720,17 @@ void Heap::MarkCompactPrologue() {
   FlushNumberStringCache();
 }
 
-void Heap::CheckNewSpaceExpansionCriteria() {
-  if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_->TotalCapacity()) {
-    //PRANAV-check heuristics
-    // Grow the size of new space if there is room to grow, and enough data
-    // has survived scavenge since the last expansion.
-    new_space_->Grow();
-    survived_since_last_expansion_ = 0;
-  }
-  new_lo_space()->SetCapacity(new_space()->Capacity());
-}
+// void Heap::CheckNewSpaceExpansionCriteria() {
+//   if (new_space_->TotalCapacity() < new_space_->MaximumCapacity() &&
+//       survived_since_last_expansion_ > new_space_->TotalCapacity()) {
+//     //PRANAV-check heuristics
+//     // Grow the size of new space if there is room to grow, and enough data
+//     // has survived scavenge since the last expansion.
+//     new_space_->Grow();
+//     survived_since_last_expansion_ = 0;
+//   }
+//   new_lo_space()->SetCapacity(new_space()->Capacity());
+// }
 
 void Heap::Scavenge() {
   DCHECK_NOT_NULL(new_space());
@@ -5701,7 +5701,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   //check
   std::string output = "";
   output = output.append("FLAG_minor_mc: ").
-                  append(std::to_string(FLAG_minor_mc)).
+                  append(std::to_string(v8_flags.minor_mc)).
                   append(" initial_semispace_size_: ").
                   append(std::to_string(initial_semispace_size_)).
                   append(" max_semi_space_size_").
