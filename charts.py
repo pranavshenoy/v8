@@ -12,6 +12,7 @@ from tabulate import tabulate
 from scipy.stats import linregress
 import pathlib
 from enum import Enum
+import matplotlib.colors as pltc
 
 # class Data:
 #     def __init__(self, table):
@@ -19,7 +20,7 @@ from enum import Enum
 #         pass
 
 MB = 1024 * 1024
-colors = ["red", "blue", "orange", "green", "brown", "pink", "yellow", "black", "blue", "purple", "silver"]
+colors = ["lightsteelblue", "darkviolet", "blue", "pink", "yellow", "gold", "orange", "red", "brown", "lightcoral", "lightgrey", "dimgrey", "black", "lightpink", "violet"]
 
 if(len(sys.argv) == 1):
     print("Pass output directory")
@@ -40,6 +41,11 @@ def column(matrix, i):
 
 def cleanup():
     dirs = get_dirs()
+    #cleanup all plots
+    files = glob.glob(input_dir+"*.png")
+    for file in files:
+        os.remove(file)
+
     for _, dir in enumerate(dirs):
         files = glob.glob(dir+"*.png")
         for file in files:
@@ -63,16 +69,16 @@ def get_title(dir):
         return "Splay"
     return path.name
 
-def plot_graph(x, y, xlabel, ylabel, filename, dir, title):
-    if(len(x) == 0 or len(y) == 0):
-        return
-    plt.figure()
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.plot(x, y, 'o')
-    plt.savefig(dir+filename+".png")
-    plt.close()
+# def plot_graph(x, y, xlabel, ylabel, filename, dir, title):
+#     if(len(x) == 0 or len(y) == 0):
+#         return
+#     plt.figure()
+#     plt.xlabel(xlabel)
+#     plt.ylabel(ylabel)
+#     plt.title(title)
+#     plt.plot(x, y, 'o')
+#     plt.savefig(dir+filename+".png")
+#     plt.close()
 
 def get_intercept(a, b):
     if len(a) == 0 or len(b) == 0:
@@ -81,36 +87,36 @@ def get_intercept(a, b):
     # print(res)
     return res.intercept
 
-def plot_func(dir, fx, fy, x_axis_label, y_axis_label, img_name, add_intercept):
-    files = get_files(dir)
-    x = []
-    y = []
-    for file in files:
-        data = read_file(file)
-        if len(data) <= 2:
-            continue
-        x_ = fx(data)
-        y_ = fy(data)
-        x.append(x_)
-        y.append(y_)
+# def plot_func(dir, fx, fy, x_axis_label, y_axis_label, img_name, add_intercept):
+#     files = get_files(dir)
+#     x = []
+#     y = []
+#     for file in files:
+#         data = read_file(file)
+#         if len(data) <= 2:
+#             continue
+#         x_ = fx(data)
+#         y_ = fy(data)
+#         x.append(x_)
+#         y.append(y_)
 
-    #find intercept
-    # print(dir)
-    y_intercept = get_intercept(x, y)
-    if add_intercept:
-        if y_intercept:
-            x.append(0)
-            y.append(y_intercept)
-    plot_graph(x, y, x_axis_label, y_axis_label, img_name, dir, get_title(dir))
-    return y_intercept
+#     #find intercept
+#     # print(dir)
+#     y_intercept = get_intercept(x, y)
+#     if add_intercept:
+#         if y_intercept:
+#             x.append(0)
+#             y.append(y_intercept)
+#     plot_graph(x, y, x_axis_label, y_axis_label, img_name, dir, get_title(dir))
+#     return y_intercept
 
-def plot_for_all_dir(fx, fy, x_axis_label, y_axis_label, img_name, add_intercept):
-    dirs = get_dirs()
-    y_intercepts = []
-    for _, dir in enumerate(dirs):
-        y_intercept = plot_func(dir, fx, fy, x_axis_label, y_axis_label, img_name, add_intercept)
-        y_intercepts.append([get_title(dir), y_intercept])
-    return y_intercepts
+# def plot_for_all_dir(fx, fy, x_axis_label, y_axis_label, img_name, add_intercept):
+#     dirs = get_dirs()
+#     y_intercepts = []
+#     for _, dir in enumerate(dirs):
+#         y_intercept = plot_func(dir, fx, fy, x_axis_label, y_axis_label, img_name, add_intercept)
+#         y_intercepts.append([get_title(dir), y_intercept])
+#     return y_intercepts
 
 def get_mean_after_verify(col):
     if(len(set(col)) == 0):
@@ -124,78 +130,83 @@ class Column(Enum):
     PROMOTED_BYTES = 9
     USED_BYTES = 5
 
+def get_sum(col):
+    s = sum(col)
+    print(s)
+    return s
+
+class NamedFunction:
+    def __init__(self, func, name):
+        self.func = func
+        self.name = name
+
+class BenchmarkData:
+    def __init__(self, x, y, name):
+        self.x = x
+        self.y = y
+        self.name = name
+
+def get_benchmark_data_for(dir, benchmark_name, fx, fy):
+    files = get_files(dir)
+    x = []
+    y = []
+    for file in files:
+        data = read_file(file)
+        if len(data) <= 2: #first one is the header
+            continue
+        x_ = fx(data)
+        y_ = fy(data)
+        x.append(x_)
+        y.append(y_)
+    return BenchmarkData(x, y, benchmark_name)
+
+def get_all_benchmark_data(param):
+    dirs = get_dirs()
+    all_benchmarks = []
+    fx = param["fx"].func
+    fy = param["fy"].func
+    for _, dir in enumerate(dirs):
+        benchmark_name = get_title(dir)
+        bm_data = get_benchmark_data_for(dir, benchmark_name, fx, fy)
+        all_benchmarks.append(bm_data)
+    return all_benchmarks
+
+def plot_all_benchmarks(param, benchmark_data):
+    
+    plt.figure()
+    plt.xlabel(param["fx"].name)
+    plt.ylabel(param["fy"].name)
+    for i, bm_data in enumerate(benchmark_data):
+        if(len(bm_data.x) == 0 or len(bm_data.y) == 0):
+            continue
+        plt.plot(bm_data.x, bm_data.y, 'o', markersize=6, label = bm_data.name, color= colors[i % len(colors)])
+
+    plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=5, fancybox=True, shadow=False, prop={'size': 6})
+    filename = param["fy"].name + param["fx"].name
+    plt.savefig(input_dir+filename+".png")
+    plt.close()
+
+def plot_all_graph(params):
+    for param in params:
+        all_benchmarks = get_all_benchmark_data(param)
+        plot_all_benchmarks(param, all_benchmarks)
+
+
+
+YoungGenSize = NamedFunction((lambda data : get_mean_after_verify(column(data, 7))), "Young generation size (B)")
+TotalPromotedBytes = NamedFunction((lambda data : sum(column(data, 9))), "Promoted bytes (B)")
+PromotionRate = NamedFunction((lambda data : sum(column(data, 9)) / sum(column(data, 5))), "Promotion Rate")
+AllocatedBytes = NamedFunction((lambda data : sum(column(data, 5))), "Allocated bytes")
 
 params = [
-    # {
-    #     "fx": lambda data : get_mean_after_verify(column(data, 7)),
-    #     "fy": lambda data : sum(column(data, 9)),
-    #     "x_axis_label": "Young generation size (B)",
-    #     "y_axis_label": "Promoted bytes (B)",
-    #     "img_name" : "promotion-bytes-yg",
-    #     "add_intercept": False
-    # }, 
-    # {
-    #     "fx": lambda data : get_mean_after_verify(column(data, 7)),
-    #     "fy": lambda data : sum(column(data, 11)),
-    #     "x_axis_label": "Young generation size (B)",
-    #     "y_axis_label": "gc_time (ns)",
-    #     "img_name" : "gc-time",
-    #     "add_intercept": False
-    # }, 
-    # {
-    #     "fx": lambda data : get_mean_after_verify(column(data, 7)),
-    #     "fy": lambda data : 1/len(column(data, 11)),
-    #     "x_axis_label": "Young generation size (B)",
-    #     "y_axis_label": "1/frequency",
-    #     "img_name" : "gc-frequency",
-    #     "add_intercept": False
-    # }, 
     {
-        "fx": lambda data : get_mean_after_verify(column(data, 7)),
-        "fy": lambda data : mean(column(data, 11)),
-        "x_axis_label": "Young generation size (B)",
-        "y_axis_label": "mean_gc_time (ns)",
-        "img_name" : "mean-gc-time",
-        "add_intercept": True
-    }, 
-    # {
-    #     "fx": lambda data : len(column(data, 11)),
-    #     "fy": lambda data : sum(column(data, 9)),
-    #     "x_axis_label": "gc_frequency",
-    #     "y_axis_label": "promoted bytes (B)",
-    #     "img_name" : "promoted-vs-frequency",
-    #     "add_intercept": False
-    # }, 
-    # {
-    #     "fx": lambda data : sum(column(data, 9)),
-    #     "fy": lambda data : sum(column(data, 11)),
-    #     "x_axis_label": "total promoted bytes (B)",
-    #     "y_axis_label": "time",
-    #     "img_name" : "total-promoted-vs-time",
-    #     "add_intercept": False
-    # }, 
-    # {
-    #     "fx": lambda data : mean(column(data, 9)),
-    #     "fy": lambda data : mean(column(data, 11)),
-    #     "x_axis_label": "total promoted bytes (B)",
-    #     "y_axis_label": "time",
-    #     "img_name" : "mean-promoted-vs-time",
-    #     "add_intercept": False
-    # }, 
-    {
-        "fx": lambda data : mean(column(data, 7)),
-        "fy": lambda data : mean(column(data, 9)),
-        "x_axis_label": "mean promoted bytes (B)",
-        "y_axis_label": "promoted bytes",
-        "img_name" : "mean-promoted-bytes-vs-size",
-        "add_intercept": True
+        "fx": YoungGenSize,
+        "fy": PromotionRate,
+        "add_intercept": False
     }, 
     {
-        "fx": lambda data : sum(column(data, 9)),
-        "fy": lambda data : sum(column(data, Column.PROMOTED_BYTES)/sum(column(data, Column.))),
-        "x_axis_label": "total promoted bytes (B)",
-        "y_axis_label": "time",
-        "img_name" : "total-promoted-vs-time",
+        "fx": YoungGenSize,
+        "fy": AllocatedBytes,
         "add_intercept": False
     }, 
 ]
@@ -213,89 +224,7 @@ def generate_y_intercept_table(param, y_intercepts):
     print(tabulate(y_intercepts, headers=head, tablefmt="grid"))
 
 cleanup()
-for param in params:
-    y_intercepts = plot_for_all_dir(param["fx"], param["fy"], param["x_axis_label"], param["y_axis_label"], param["img_name"], param["add_intercept"])
-    # generate_y_intercept_table(param, y_intercepts)
-
-
-
-
-
-# first_half = lambda data : data[0: int(len(data)/2)]
-# second_half = lambda data : data[ int(len(data)/2): ]
-
-# params = [
-    
-#     {
-#         "fx": lambda data : get_mean_after_verify(column(data, Column.YG_SIZE.value)),
-#         "fy": lambda data : mean(column(data, Column.USED_BYTES.value)),
-#         "x_axis_label": "Young generation size (B)",
-#         "y_axis_label": "mean_used_bytes (B)",
-#         "img_name" : "mean-used_bytes",
-#         "add_intercept": True
-#     },
-#     {
-#         "fx": lambda data : get_mean_after_verify(second_half(column(data, Column.YG_SIZE.value))),
-#         "fy": lambda data : mean(second_half(column(data, Column.GC_TIME.value)) ),
-#         "x_axis_label": "Young generation size (B)",
-#         "y_axis_label": "mean_gc_time (ns)",
-#         "img_name" : "mean-gc-time_second_half",
-#         "add_intercept": True
-#     }, 
-#     {
-#  "fx": lambda data : get_mean_after_verify(first_half(column(data, Column.YG_SIZE.value))),
-#         "fy": lambda data : mean(first_half(column(data, Column.GC_TIME.value)) ),
-#         "x_axis_label": "Young generation size (B)",
-#         "y_axis_label": "mean_gc_time (ns)",
-#         "img_name" : "mean-gc-time_first_half",
-#         "add_intercept": True
-#     }, 
-#     {
-#         "fx": lambda data : get_mean_after_verify(column(data, Column.YG_SIZE.value)),
-#         "fy": lambda data : mean(column(data, Column.GC_TIME.value )),
-#         "x_axis_label": "Young generation size (B)",
-#         "y_axis_label": "mean_gc_time (ns)",
-#         "img_name" : "mean-gc-time_full_data",
-#         "add_intercept": True
-#     }, 
-#     {
-#         "fx": lambda data : get_mean_after_verify(first_half(column(data, Column.YG_SIZE.value))),
-#         "fy": lambda data : mean(first_half(column(data, Column.PROMOTED_BYTES.value))),
-#         "x_axis_label": "Young generation size (B)",
-#         "y_axis_label": "promoted bytes",
-#         "img_name" : "mean-promoted-bytes-vs-size-first_half",
-#         "add_intercept": True
-#     }, 
-#     {
-#         "fx": lambda data : get_mean_after_verify(second_half(column(data, Column.YG_SIZE.value))),
-#         "fy": lambda data : mean(second_half(column(data, Column.PROMOTED_BYTES.value))),
-#         "x_axis_label": "Young generation size (B)",
-#         "y_axis_label": "promoted bytes",
-#         "img_name" : "mean-promoted-bytes-vs-size-second_half",
-#         "add_intercept": True
-#     }, 
-#     {
-#         "fx": lambda data : get_mean_after_verify(column(data, Column.YG_SIZE.value)),
-#         "fy": lambda data : mean(column(data, Column.PROMOTED_BYTES.value)),
-#         "x_axis_label": "Young generation size (B)",
-#         "y_axis_label": "promoted bytes",
-#         "img_name" : "mean-promoted-bytes-vs-size-full_data",
-#         "add_intercept": True
-#     }, 
-# ]
-
-
-# def generate_y_intercept_table(param, y_intercepts):
-#     if param["add_intercept"] == False:
-#         return
-#     # print("Intercepts for "+param["img_name"]+"\n")
-#     # only_intercepts = [row[1] for row in y_intercepts]
-#     # print("Mean: "+ str(mean(only_intercepts)))
-#     # print("Std Deviation: "+ str(np.std(only_intercepts)))
-#     head = ["Benchmark", "y_Intercept"]
-#     print(tabulate(y_intercepts, headers=head, tablefmt="grid"))
-
-# cleanup()
 # for param in params:
-#     y_intercepts = plot_for_all_dir(param["fx"], param["fy"], param["x_axis_label"], param["y_axis_label"], param["img_name"], param["add_intercept"])
+#     y_intercepts = plot_for_all_dir(param["fx"].func, param["fy"].func, param["fx"].name, param["fy"].name, param["fx"].name + param["fy"].name, param["add_intercept"])
 #     # generate_y_intercept_table(param, y_intercepts)
+plot_all_graph(params)

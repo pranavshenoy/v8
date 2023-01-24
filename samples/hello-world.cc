@@ -194,7 +194,7 @@ void run_acdc(const Input& input, Signal *s) {
       script->Run(context);
     }
   }
-  // std::this_thread::sleep_for (std::chrono::seconds(5));
+  std::this_thread::sleep_for (std::chrono::seconds(5));
   std::cout << "try isolate->dispose!" << std::endl;
   isolate->Dispose();
   std::cout << "isolate->dispose ok!" << std::endl;
@@ -278,64 +278,66 @@ int main(int argc, char* argv[]) {
     // Run the script to get the result.
     v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
 
-    //TODO: revert
-    // // Convert the result to an UTF8 string and print it.
-    // v8::String::Utf8Value utf8(isolate, result);
-    // if(pgm[0] == 's') {
-    //   printf("Testing splay\n");
-    //   // Create a string containing the JavaScript source code.
-    //   v8::Local<v8::String> source = fromString(isolate, getSplay());
-    //   // v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, getJS());
+    // Convert the result to an UTF8 string and print it.
+    v8::String::Utf8Value utf8(isolate, result);
+    if(pgm[0] == 's') {
+      printf("Testing splay\n");
+      // Create a string containing the JavaScript source code.
+      v8::Local<v8::String> source = fromString(isolate, getSplay());
+      // v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, getJS());
 
-    //   // Compile the source code.
-    //   v8::Local<v8::Script> script =
-    //       v8::Script::Compile(context, source).ToLocalChecked();
+      // Compile the source code.
+      v8::Local<v8::Script> script =
+          v8::Script::Compile(context, source).ToLocalChecked();
 
-    //   // Run the script to get the result.
-    //   v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
+      // Run the script to get the result.
+      v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
 
-    //   // Convert the result to an UTF8 string and print it.
-    //   // v8::String::Utf8Value utf8(isolate, result);
-    //   // printf("%s\n", *utf8);
-    // } else if(pgm[0] == 't') {
+      // Convert the result to an UTF8 string and print it.
+      // v8::String::Utf8Value utf8(isolate, result);
+      // printf("%s\n", *utf8);
+    } else if(pgm[0] == 't') {
 
-    //   printf("Testing typescript\n");
-    //   // Create a string containing the JavaScript source code.
-    //   v8::Local<v8::String> source = fromString(isolate, getTypeScript());
-    //   // v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, getJS());
+      printf("Testing typescript\n");
+      // Create a string containing the JavaScript source code.
+      v8::Local<v8::String> source = fromString(isolate, getTypeScript());
+      // v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, getJS());
 
-    //   // Compile the source code.
-    //   v8::Local<v8::Script> script =
-    //       v8::Script::Compile(context, source).ToLocalChecked();
+      // Compile the source code.
+      v8::Local<v8::Script> script =
+          v8::Script::Compile(context, source).ToLocalChecked();
 
-    //   // Run the script to get the result.
-    //   v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
+      // Run the script to get the result.
+      v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
 
-    //   // Convert the result to an UTF8 string and print it.
-    //   // v8::String::Utf8Value utf8(isolate, result);
-    //   // printf("%s\n", *utf8);
-    // } else if(pgm[0] == 'p') {
-    //   printf("Testing pdfjs\n");
-    //   // Create a string containing the JavaScript source code.
-    //   v8::Local<v8::String> source = fromString(isolate, getpdfjs());
-    //   // v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, getJS());
+      // Convert the result to an UTF8 string and print it.
+      // v8::String::Utf8Value utf8(isolate, result);
+      // printf("%s\n", *utf8);
+    } else if(pgm[0] == 'p') {
+      printf("Testing pdfjs\n");
+      // Create a string containing the JavaScript source code.
+      v8::Local<v8::String> source = fromString(isolate, getpdfjs());
+      // v8::Local<v8::String> source = v8::String::NewFromUtf8Literal(isolate, getJS());
 
-    //   // Compile the source code.
-    //   v8::Local<v8::Script> script =
-    //       v8::Script::Compile(context, source).ToLocalChecked();
+      // Compile the source code.
+      v8::Local<v8::Script> script =
+          v8::Script::Compile(context, source).ToLocalChecked();
 
-    //   // Run the script to get the result.
-    //   v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
+      // Run the script to get the result.
+      v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
 
-    //   // Convert the result to an UTF8 string and print it.
-    //   v8::String::Utf8Value utf8(isolate, result);
+      // Convert the result to an UTF8 string and print it.
+      v8::String::Utf8Value utf8(isolate, result);
       
-    // } else if(pgm[0] == 'a'){
-    //   printf("Running ACDC\n");
-    //   acdc();
-    // } else {
-    //   printf("please enter right argument %s", pgm);
-    // }
+    } else if(pgm[0] == 'a'){
+      printf("Running ACDC\n");
+      acdc();
+    } else {
+      printf("please enter right argument %s", pgm);
+    }
+
+
+
     // {
     //   // Create a string containing the JavaScript source code.
     //   v8::Local<v8::String> source =
