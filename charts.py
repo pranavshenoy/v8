@@ -160,6 +160,8 @@ def get_benchmark_data_for(dir, benchmark_name, fx, fy):
         y.append(y_)
     return BenchmarkData(x, y, benchmark_name)
 
+
+# [benchmarkdata([x], [y], "acdc"), ....]
 def get_all_benchmark_data(param):
     dirs = get_dirs()
     all_benchmarks = []
@@ -186,30 +188,77 @@ def plot_all_benchmarks(param, benchmark_data):
     plt.savefig(input_dir+filename+".png")
     plt.close()
 
-def plot_all_graph(params):
+def get_y_intercepts(benchmarks):
+    x = []
+    y = []
+    for bm in benchmarks:
+        intercept = get_intercept(bm.x, bm.y)
+        x.append(bm.name)
+        y.append(intercept)
+    return (x, y)
+
+def plot_y_intercepts(param, benchmarks):
+    (x, y) = get_y_intercepts(benchmarks)
+    plt.figure()
+    plt.xlabel("benchmarks")
+    plt.ylabel("y intercepts")
+    plt.bar(x, y)
+    plt.xticks(rotation=90, ha='right')
+    filename = "y_intercept-"+param["fy"].name
+    plt.title(filename)
+    plt.savefig(input_dir+filename+".png")
+    plt.close()
+
+
+def plot_for_all_params(params):
     for param in params:
         all_benchmarks = get_all_benchmark_data(param)
         plot_all_benchmarks(param, all_benchmarks)
-
+        if param["y_intercept"] == False:
+            continue
+        plot_y_intercepts(param, all_benchmarks)
 
 
 YoungGenSize = NamedFunction((lambda data : get_mean_after_verify(column(data, 7))), "Young generation size (B)")
 TotalPromotedBytes = NamedFunction((lambda data : sum(column(data, 9))), "Promoted bytes (B)")
+MeanPromotedBytes = NamedFunction((lambda data : mean(column(data, 9))), "Promoted bytes (B)")
 PromotionRate = NamedFunction((lambda data : sum(column(data, 9)) / sum(column(data, 5))), "Promotion Rate")
 AllocatedBytes = NamedFunction((lambda data : sum(column(data, 5))), "Allocated bytes")
+TotalTime = NamedFunction((lambda data : sum(column(data, 11))), "Time  (ns)")
+
 
 params = [
+    # {
+    #     "fx": YoungGenSize,
+    #     "fy": PromotionRate,
+    #     "y_intercept": False
+    # }, 
+    # {
+    #     "fx": YoungGenSize,
+    #     "fy": AllocatedBytes,
+    #     "y_intercept": False
+    # }, 
     {
         "fx": YoungGenSize,
-        "fy": PromotionRate,
-        "add_intercept": False
+        "fy": TotalPromotedBytes,
+        "y_intercept": True
     }, 
     {
         "fx": YoungGenSize,
-        "fy": AllocatedBytes,
-        "add_intercept": False
+        "fy": TotalTime,
+        "y_intercept": True
     }, 
+    # {
+    #     "fx": YoungGenSize,
+    #     "fy": MeanPromotedBytes,
+    #     "y_intercept": False
+    # }, 
 ]
+
+
+
+
+
 
 
 
@@ -227,4 +276,4 @@ cleanup()
 # for param in params:
 #     y_intercepts = plot_for_all_dir(param["fx"].func, param["fy"].func, param["fx"].name, param["fy"].name, param["fx"].name + param["fy"].name, param["add_intercept"])
 #     # generate_y_intercept_table(param, y_intercepts)
-plot_all_graph(params)
+plot_for_all_params(params)
