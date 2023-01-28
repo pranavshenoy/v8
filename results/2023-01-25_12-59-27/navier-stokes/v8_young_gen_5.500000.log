@@ -1,0 +1,3 @@
+b_initial_y_size_0	b_max_y_size_1	b_used_2	b_available_3	b_committed_4	a_used_5	a_available_6	a_committed_7	a_survived_8	a_promoted_9	a_copied_10	a_time_in_ns_11	promotion_rate_12
+17301504	17301504	5579904	5579904	11534336	336	11159472	11534336	162760	162424	0	195030	99	
+17301504	17301504	5579904	5579904	11534336	156	11159652	11534336	444	288	0	94583	85	

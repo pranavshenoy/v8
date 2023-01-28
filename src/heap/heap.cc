@@ -1635,16 +1635,16 @@ std::vector<size_t> Heap::GetCurrStatus() {
 
   std::vector<size_t> result;
 
-  size_t new_lo_space_used = new_lo_space_->SizeOfObjects();
-  size_t new_lo_space_available = new_lo_space_->Available();
-  size_t new_lo_space_committed = new_lo_space_->CommittedMemory();
+  // size_t new_lo_space_used = new_lo_space_->SizeOfObjects();
+  // size_t new_lo_space_available = new_lo_space_->Available();
+  // size_t new_lo_space_committed = new_lo_space_->CommittedMemory();
   size_t new_space_used = new_space_->SizeOfObjects();
   size_t new_space_available = new_space_->Available() ;
   size_t new_space_committed = new_space_->CommittedMemory();
 
-  size_t total_young_committed = new_space_committed + new_lo_space_committed;
-  size_t total_young_available = new_space_available + new_lo_space_available;
-  size_t total_young_used = new_lo_space_used + new_space_used;
+  size_t total_young_committed = new_space_committed;// + new_lo_space_committed;
+  size_t total_young_available = new_space_available;// + new_lo_space_available;
+  size_t total_young_used = new_space_used;
   result.push_back(total_young_used);
   result.push_back(total_young_available);
   result.push_back(total_young_committed);
@@ -1689,32 +1689,35 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollectionReason gc_reas
     const char* collector_reason = nullptr;
     // std::cout<<"Running collect Garbage\n";
     bool isYoung = IsYoungGenerationCollector(SelectGarbageCollector(space, gc_reason, &collector_reason));
+    size_t before_gc = new_space_->SizeOfObjects();
 
     std::vector<size_t> stats;
-    if(isYoung && space == NEW_SPACE) {
-      size_t initial_young_gen_size = YoungGenerationSizeFromSemiSpaceSize(initial_semispace_size_);
-      size_t max_young_gen_size =  YoungGenerationSizeFromSemiSpaceSize(max_semi_space_size_);
-      stats.push_back(initial_young_gen_size);
-      stats.push_back(max_young_gen_size);
-      std::vector<size_t> tmp = GetCurrStatus();
-      stats.insert(stats.end(), tmp.begin(), tmp.end());
-    }
+    
+    size_t initial_young_gen_size = YoungGenerationSizeFromSemiSpaceSize(initial_semispace_size_);
+    size_t max_young_gen_size =  YoungGenerationSizeFromSemiSpaceSize(max_semi_space_size_);
+    stats.push_back(initial_young_gen_size);
+    stats.push_back(max_young_gen_size);
+    std::vector<size_t> tmp = GetCurrStatus();
+    stats.insert(stats.end(), tmp.begin(), tmp.end());
+
     auto base = std::chrono::system_clock::now();
     bool result = CollectGarbageAux(space, gc_reason, gc_callback_flags);
     auto time_in_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - base).count();
-    if(isYoung) {
-      std::vector<size_t> tmp = GetCurrStatus();
-      stats.insert(stats.end(), tmp.begin(), tmp.end());
-      size_t survived_obj_size = SurvivedYoungObjectSize();
-      size_t promotion_size = promoted_objects_size_;
-      size_t copied_size =  nodes_copied_in_new_space_;
-      stats.push_back(survived_obj_size);
-      stats.push_back(promotion_size);
-      stats.push_back(copied_size);
-      stats.push_back(time_in_ns);
-      stats.push_back((int32_t)promotion_rate_);
-      DumpStats(stats);
-    }
+    // if(isYoung && space == NEW_SPACE) {
+    std::vector<size_t> tmp = GetCurrStatus();
+    stats.insert(stats.end(), tmp.begin(), tmp.end());
+    size_t survived_obj_size = SurvivedYoungObjectSize();
+    size_t promotion_size = promoted_objects_size_;
+    size_t copied_size =  nodes_copied_in_new_space_;
+    stats.push_back(survived_obj_size);
+    stats.push_back(promotion_size);
+    stats.push_back(copied_size);
+    stats.push_back(time_in_ns);
+    stats.push_back((int32_t)promotion_rate_);
+    // new_space_last_gc_size = new_space_->SizeOfObjects();
+    // stats.push_back(before_gc - new_space_last_gc_size);
+    DumpStats(stats);
+    // }
     // std::cout<<"Done with collectGarbage\n";
     return result;
 }

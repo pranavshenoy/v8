@@ -21,7 +21,7 @@ import matplotlib.colors as pltc
 
 MB = 1024 * 1024
 colors = ["lightsteelblue", "darkviolet", "blue", "pink", "yellow", "gold", "orange", "red", "brown", "lightcoral", "lightgrey", "dimgrey", "black", "lightpink", "violet"]
-
+symbols = ["-", ">", "<", "o", "+", "*", "1", "2", "3", "h"]
 if(len(sys.argv) == 1):
     print("Pass output directory")
     exit()
@@ -158,8 +158,12 @@ def get_benchmark_data_for(dir, benchmark_name, fx, fy):
         y_ = fy(data)
         x.append(x_)
         y.append(y_)
-    return BenchmarkData(x, y, benchmark_name)
-
+    intercept = get_intercept(x, y)
+    if intercept:
+        x.append(0)
+        y.append(intercept)
+    bm = BenchmarkData(x, y, benchmark_name)    
+    return bm
 
 # [benchmarkdata([x], [y], "acdc"), ....]
 def get_all_benchmark_data(param):
@@ -193,12 +197,14 @@ def get_y_intercepts(benchmarks):
     y = []
     for bm in benchmarks:
         intercept = get_intercept(bm.x, bm.y)
-        x.append(bm.name)
-        y.append(intercept)
+        if intercept:
+            x.append(bm.name)
+            y.append(intercept)
     return (x, y)
 
 def plot_y_intercepts(param, benchmarks):
     (x, y) = get_y_intercepts(benchmarks)
+    print("x: "+ str(x) + " y: "+str(y) )
     plt.figure()
     plt.xlabel("benchmarks")
     plt.ylabel("y intercepts")
@@ -222,37 +228,44 @@ def plot_for_all_params(params):
 YoungGenSize = NamedFunction((lambda data : get_mean_after_verify(column(data, 7))), "Young generation size (B)")
 TotalPromotedBytes = NamedFunction((lambda data : sum(column(data, 9))), "Promoted bytes (B)")
 MeanPromotedBytes = NamedFunction((lambda data : mean(column(data, 9))), "Promoted bytes (B)")
-PromotionRate = NamedFunction((lambda data : sum(column(data, 9)) / sum(column(data, 5))), "Promotion Rate")
-AllocatedBytes = NamedFunction((lambda data : sum(column(data, 5))), "Allocated bytes")
+PromotionRate = NamedFunction((lambda data : sum(column(data, 9)) / (sum(column(data, 2)) - sum(column(data, 5)) )), "Promotion Rate")
+TotalAllocatedBytes = NamedFunction((lambda data : sum(column(data, 5))), "Total Allocated bytes")
 TotalTime = NamedFunction((lambda data : sum(column(data, 11))), "Time  (ns)")
-
+MeanAllocatedBytes = NamedFunction((lambda data : mean(column(data, 5))), "Mean Allocated bytes")
+AccurateAllocatedBytes = NamedFunction((lambda data : sum(column(data, 2)) - sum(column(data, 5))), "Allocated bytes")
 
 params = [
+    {
+        "fx": YoungGenSize,
+        "fy": PromotionRate,
+        "y_intercept": True
+    },
     # {
     #     "fx": YoungGenSize,
-    #     "fy": PromotionRate,
-    #     "y_intercept": False
+    #     "fy": TotalPromotedBytes,
+    #     "y_intercept": True
     # }, 
     # {
     #     "fx": YoungGenSize,
-    #     "fy": AllocatedBytes,
-    #     "y_intercept": False
+    #     "fy": TotalTime,
+    #     "y_intercept": True
     # }, 
-    {
-        "fx": YoungGenSize,
-        "fy": TotalPromotedBytes,
-        "y_intercept": True
-    }, 
-    {
-        "fx": YoungGenSize,
-        "fy": TotalTime,
-        "y_intercept": True
-    }, 
     # {
     #     "fx": YoungGenSize,
     #     "fy": MeanPromotedBytes,
     #     "y_intercept": False
     # }, 
+    # {
+    #     "fx": YoungGenSize,
+    #     "fy": MeanAllocatedBytes,
+    #     "y_intercept": False
+    # },
+    {
+        "fx": YoungGenSize,
+        "fy": AccurateAllocatedBytes,
+        "y_intercept": False
+    }, 
+
 ]
 
 
@@ -262,15 +275,15 @@ params = [
 
 
 
-def generate_y_intercept_table(param, y_intercepts):
-    if param["add_intercept"] == False:
-        return
-    # print("Intercepts for "+param["img_name"]+"\n")
-    # only_intercepts = [row[1] for row in y_intercepts]
-    # print("Mean: "+ str(mean(only_intercepts)))
-    # print("Std Deviation: "+ str(np.std(only_intercepts)))
-    head = ["Benchmark", "y_Intercept"]
-    print(tabulate(y_intercepts, headers=head, tablefmt="grid"))
+# def generate_y_intercept_table(param, y_intercepts):
+#     if param["add_intercept"] == False:
+#         return
+#     # print("Intercepts for "+param["img_name"]+"\n")
+#     # only_intercepts = [row[1] for row in y_intercepts]
+#     # print("Mean: "+ str(mean(only_intercepts)))
+#     # print("Std Deviation: "+ str(np.std(only_intercepts)))
+#     head = ["Benchmark", "y_Intercept"]
+#     print(tabulate(y_intercepts, headers=head, tablefmt="grid"))
 
 cleanup()
 # for param in params:
