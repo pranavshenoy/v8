@@ -14,6 +14,7 @@
 
 
 export PATH="/home/pranav/depot_tools":$PATH
+echo "here you go!!!....$(which gclient)"
 gn_dir="out.gn/x64.release.sample"
 rm -rf $gn_dir
 if [ ! -d "$gn_dir" ]; then
