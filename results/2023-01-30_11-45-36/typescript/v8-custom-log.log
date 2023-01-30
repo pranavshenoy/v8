@@ -1,1 +1,1 @@
-FLAG_minor_mc: 0 initial_semispace_size_: 9961472 max_semi_space_size_9961472
+FLAG_minor_mc: 0 initial_semispace_size_: 10485760 max_semi_space_size_10485760
