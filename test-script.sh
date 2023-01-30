@@ -13,9 +13,11 @@
 # ./build/install-build-deps.sh
 
 
+export PATH="/home/pranav/depot_tools":$PATH
 gn_dir="out.gn/x64.release.sample"
 rm -rf $gn_dir
 if [ ! -d "$gn_dir" ]; then
+
     echo "Initializing v8 builds"
     gclient root
 
