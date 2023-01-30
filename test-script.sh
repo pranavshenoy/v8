@@ -17,7 +17,7 @@ gn_dir="out.gn/x64.release.sample"
 if [ ! -d "$gn_dir" ]; then
     echo "Initializing v8 builds"
     tools/dev/v8gen.py x64.release.sample
-    
+
 fi
 
 
@@ -27,8 +27,8 @@ fi
 rm v8-run-*.log
 rm v8_young_gen_*.log
 rm hello_world
-ninja -C out.gn/x64.release v8_monolith
-ninja -C out.gn/x64.release  v8_hello_world
+ninja -C out.gn/x64.release.sample v8_monolith
+ninja -C out.gn/x64.release.sample  v8_hello_world
 third_party/llvm-build/Release+Asserts/bin/clang++ /home/pranav/v8/src/out.gn/x64.release.sample/obj/v8_hello_world/hello-world.o /home/pranav/v8/src/out.gn/x64.release.sample/obj/libv8_monolith.a -o hello_world
 
 
