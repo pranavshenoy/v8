@@ -13,37 +13,43 @@
 # ./build/install-build-deps.sh
 
 
-export PATH="/home/pranav/depot_tools":$PATH
-echo "here you go!!!....$(which gclient)"
-gn_dir="out.gn/x64.release.sample"
-rm -rf $gn_dir
-if [ ! -d "$gn_dir" ]; then
+# export PATH="/home/pranav/depot_tools":$PATH
+# echo "here you go!!!....$(which gclient)"
+# gn_dir="out.gn/x64.release.sample"
+# depot_tools_dir="../depot_tools/"
+# rm -rf $gn_dir #todo: remove later
 
-    echo "Initializing v8 builds"
-    gclient root
-
-    gclient config --spec "solutions = [
-  {
-    \"name\": \"src\",
-    \"url\": \"git@github.com:pranavshenoy/v8.git\",
-    \"managed\": False,
-    \"custom_deps\": {},
-    \"custom_vars\": {},
-  },
-]
-"
-
-    gclient sync --nohooks --no-history
-    echo "Installing build deps"
-    ./build/install-build-deps.sh
-    #pip3 install mb
-    pip3 install gn_helpers
-    tools/dev/v8gen.py x64.release.sample
-    # add more args to gn
-fi
+# if [ ! -d "$depot_tools_dir" ]; then
+#     cd ..
+#     git clone 
+# fi
 
 
 
+# if [ ! -d "$gn_dir" ]; then
+    
+#     echo "Initializing v8 builds"
+#     gclient root
+
+#     gclient config --spec "solutions = [
+#   {
+#     \"name\": \"src\",
+#     \"url\": \"git@github.com:pranavshenoy/v8.git\",
+#     \"managed\": False,
+#     \"custom_deps\": {},
+#     \"custom_vars\": {},
+#   },
+# ]
+# "
+
+#     gclient sync --nohooks --no-history
+#     echo "Installing build deps"
+#     ./build/install-build-deps.sh
+#     #pip3 install mb
+#     pip3 install gn_helpers
+#     tools/dev/v8gen.py x64.release.sample
+#     # add more args to gn
+# fi
 
 
 rm v8-run-*.log

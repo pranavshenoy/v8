@@ -121,7 +121,7 @@ def get_intercept(a, b):
 def get_mean_after_verify(col):
     if(len(set(col)) == 0):
         return 
-    assert(len(set(col)) == 1)
+    # assert(len(set(col)) == 1)  
     return mean(col)
 
 class Column(Enum):
@@ -154,6 +154,7 @@ def get_benchmark_data_for(dir, benchmark_name, fx, fy):
         data = read_file(file)
         if len(data) <= 2: #first one is the header
             continue
+        print("Benchmark data for "+ dir+" "+file)
         x_ = fx(data)
         y_ = fy(data)
         x.append(x_)

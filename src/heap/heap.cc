@@ -1688,8 +1688,8 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollectionReason gc_reas
 
     const char* collector_reason = nullptr;
     // std::cout<<"Running collect Garbage\n";
-    bool isYoung = IsYoungGenerationCollector(SelectGarbageCollector(space, gc_reason, &collector_reason));
-    size_t before_gc = new_space_->SizeOfObjects();
+    IsYoungGenerationCollector(SelectGarbageCollector(space, gc_reason, &collector_reason));
+    // size_t before_gc = new_space_->SizeOfObjects();
 
     std::vector<size_t> stats;
     
@@ -1703,8 +1703,8 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollectionReason gc_reas
     auto base = std::chrono::system_clock::now();
     bool result = CollectGarbageAux(space, gc_reason, gc_callback_flags);
     auto time_in_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - base).count();
-    // if(isYoung && space == NEW_SPACE) {
-    std::vector<size_t> tmp = GetCurrStatus();
+
+    tmp = GetCurrStatus();
     stats.insert(stats.end(), tmp.begin(), tmp.end());
     size_t survived_obj_size = SurvivedYoungObjectSize();
     size_t promotion_size = promoted_objects_size_;
@@ -1714,11 +1714,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollectionReason gc_reas
     stats.push_back(copied_size);
     stats.push_back(time_in_ns);
     stats.push_back((int32_t)promotion_rate_);
-    // new_space_last_gc_size = new_space_->SizeOfObjects();
-    // stats.push_back(before_gc - new_space_last_gc_size);
     DumpStats(stats);
-    // }
-    // std::cout<<"Done with collectGarbage\n";
     return result;
 }
 
