@@ -17,7 +17,20 @@ gn_dir="out.gn/x64.release.sample"
 rm -rf $gn_dir
 if [ ! -d "$gn_dir" ]; then
     echo "Initializing v8 builds"
-    gclient sync
+    gclient root
+
+    gclient config --spec "solutions = [
+  {
+    \"name\": \"src\",
+    \"url\": \"git@github.com:pranavshenoy/v8.git\",
+    \"managed\": False,
+    \"custom_deps\": {},
+    \"custom_vars\": {},
+  },
+]
+"
+
+    gclient sync --nohooks --no-history
     echo "Installing build deps"
     ./build/install-build-deps.sh
     #pip3 install mb
