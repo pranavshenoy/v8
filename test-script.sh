@@ -16,7 +16,8 @@
 gn_dir="out.gn/x64.release.sample"
 if [ ! -d "$gn_dir" ]; then
     echo "Initializing v8 builds"
-    tools/dev/v8gen.py x64.release.sampe
+    tools/dev/v8gen.py x64.release.sample
+    
 fi
 
 
