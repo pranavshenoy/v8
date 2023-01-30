@@ -7,12 +7,17 @@
 # export PATH=/path/to/depot_tools:$PATH
 # echo "Pranav: depot_tools installed. check it out"
 # echo "$(depot_tools -help)"
-
-
 #resolving dependencies
 # echo "hi"
 # gclient sync
 # ./build/install-build-deps.sh
+
+
+gn_dir="out.gn/x64.release.sample"
+if [ ! -d "$gn_dir" ]; then
+    echo "Initializing v8 builds"
+    tools/dev/v8gen.py x64.release.sampe
+fi
 
 
 
@@ -25,7 +30,6 @@ ninja -C out.gn/x64.release v8_monolith
 ninja -C out.gn/x64.release  v8_hello_world
 third_party/llvm-build/Release+Asserts/bin/clang++ /home/pranav/v8/src/out.gn/x64.release.sample/obj/v8_hello_world/hello-world.o /home/pranav/v8/src/out.gn/x64.release.sample/obj/libv8_monolith.a -o hello_world
 
-# g++ -I. -Iinclude samples/hello-world.cc -o hello_world    -lv8_monolith -Lout.gn/x64.release.sample/obj/ -pthread -std=c++17 -DV8_COMPRESS_POINTERS -ldl
 
 #creating directory
 TIMESTAMP=`date +%Y-%m-%d_%H-%M-%S`

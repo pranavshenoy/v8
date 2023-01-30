@@ -240,11 +240,11 @@ params = [
         "fy": PromotionRate,
         "y_intercept": True
     },
-    # {
-    #     "fx": YoungGenSize,
-    #     "fy": TotalPromotedBytes,
-    #     "y_intercept": True
-    # }, 
+    {
+        "fx": YoungGenSize,
+        "fy": TotalPromotedBytes,
+        "y_intercept": True
+    }, 
     # {
     #     "fx": YoungGenSize,
     #     "fy": TotalTime,
