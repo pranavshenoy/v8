@@ -72,6 +72,10 @@ namespace v8 {
 
 class Platform;
 
+
+std::string GetName();
+void SetName(const std::string& name);
+
 /**
  * \example shell.cc
  * A simple shell that takes a list of expressions on the

@@ -747,6 +747,8 @@ class V8_EXPORT Isolate {
    */
   template <class T>
   V8_INLINE MaybeLocal<T> GetDataFromSnapshotOnce(size_t index);
+  std::string GetName();
+  void SetName(const std::string& name);
 
   /**
    * Get statistics about the heap memory usage.

@@ -11,6 +11,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
+#include <unistd.h>
+#include <thread>
+#include <mutex>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
@@ -45,6 +49,8 @@
 #include "src/roots/roots.h"
 #include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
+#include "timer.h"
+
 
 namespace cppgc {
 namespace internal {
@@ -219,13 +225,57 @@ template <typename T>
 using UnorderedHeapObjectMap =
     std::unordered_map<HeapObject, T, Object::Hasher, Object::KeyEqualSafe>;
 
+
+#ifndef V8_HEAP_TIMER_H_
+#define V8_HEAP_TIMER_H_
+
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <functional>
+
+// A timer that call a function periodically.
+// One thing I can do is to have timer as a member of the object of interest,
+// And start/stop the timer automatically with RAII tricks, in the timer class.
+// This sounds too dangerous - the function might run when it is invalid.
+// Also, when the object timer call is being destructed, timer might call on invalid state again.
+// This API is also more flexible.
+struct Timer {
+  using time_t = std::chrono::time_point<std::chrono::system_clock>;
+  std::atomic<bool> started_;
+  std::thread t;
+  Timer() : started_(false) { }
+  ~Timer() {
+    try_stop();
+  }
+  std::recursive_mutex mutex;
+  // a timer to make sure after stop() return, f() will not be running.
+  // we force the timer mutex to be of a high priority - other mutex-locked code *cannot* lock timer by calling timer's method.
+  // this design decision allow timer's f to call arbitary code.
+  // todo: right now, mutex is locked automatically on api call.
+  // maybe expose a transactional-based api that require passing the lock_guard?
+  bool started();
+  void start(const std::function<void()>& f, time_t::duration interval);
+  void try_start(const std::function<void()>& f, time_t::duration interval);
+  void stop();
+  void try_stop();
+};
+
+#endif  // V8_HEAP_TIMER_H_
+
 class Heap {
  public:
+  std::string guid() const {
+    return std::to_string(getpid()) + "_" + std::to_string(reinterpret_cast<intptr_t>(this));
+  }
   // Stores ephemeron entries where the EphemeronHashTable is in old-space,
   // and the key of the entry is in new-space. Such keys do not appear in the
   // usual OLD_TO_NEW remembered set.
   EphemeronRememberedSet ephemeron_remembered_set_;
 
+  V8_EXPORT_PRIVATE bool CollectGarbageAux(
+      AllocationSpace space, GarbageCollectionReason gc_reason,
+      const GCCallbackFlags gc_callback_flags);
   enum class HeapGrowingMode { kSlow, kConservative, kMinimal, kDefault };
 
   enum HeapState {
@@ -989,9 +1039,6 @@ class Heap {
       AllocationSpace space, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
-  V8_EXPORT_PRIVATE bool CollectGarbageAux(
-      AllocationSpace space, GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags);
 
   V8_EXPORT_PRIVATE void DumpStats(std::vector<size_t> result);
   V8_EXPORT_PRIVATE void WriteStat(std::string result);
@@ -1943,13 +1990,7 @@ class Heap {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  inline size_t OldGenerationSpaceAvailable() {
-    uint64_t bytes = OldGenerationSizeOfObjects() +
-                     AllocatedExternalMemorySinceMarkCompact();
-
-    if (old_generation_allocation_limit() <= bytes) return 0;
-    return old_generation_allocation_limit() - static_cast<size_t>(bytes);
-  }
+  size_t OldGenerationSpaceAvailable();
 
   void UpdateTotalGCTime(double duration);
 
@@ -1959,6 +2000,10 @@ class Heap {
                                 double mutator_utilization);
   void CheckIneffectiveMarkCompact(size_t old_generation_size,
                                    double mutator_utilization);
+
+  size_t adjusted_old_generation_allocation_limit() const;
+  size_t adjusted_global_allocation_limit() const;
+  size_t ComputeOldGenerationAllocationLimit(GarbageCollector collector);
 
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
@@ -2254,7 +2299,8 @@ class Heap {
   // which collector to invoke, before expanding a paged space in the old
   // generation and on every allocation in large object space.
   std::atomic<size_t> old_generation_allocation_limit_{0};
-  size_t global_allocation_limit_ = 0;
+  std::atomic<size_t> global_allocation_limit_{0};
+  std::atomic<size_t> global_allocation_limit_delta_{0};
 
   // Weak list heads, threaded through the objects.
   // List heads are initialized lazily and contain the undefined_value at start.
@@ -2487,6 +2533,25 @@ class Heap {
 
   // Used in cctest.
   friend class heap::HeapTester;
+  public:
+  // also touch global allocation limit
+  void update_heap_limit(size_t new_limit);
+  std::ofstream gc_log_f, memory_log_f;
+  Timer memory_log_timer;
+  // for monitoring purpose only
+  std::string name_;
+  double total_major_gc_time_ms_ = 0.0;
+  void UpdateTotalMajorGCTime(double duration);
+  double GetTotalMajorGCTime();
+  static int MinHeapExtraSizeInMB();
+  using BytesAndDuration = std::pair<uint64_t, double>;
+  base::Optional<BytesAndDuration> major_gc_bad, major_allocation_bad;
+  std::atomic<size_t> L{0};
+  std::atomic<double> g_bytes{0}, g_time{0}, s_bytes{0}, s_time{0};
+  std::atomic<bool> has_g{false}, has_s{false};
+  std::atomic<size_t> last_M_update_time{0};
+  std::atomic<double> last_M_memory{0};
+  void membalancer_update();
 };
 
 class HeapStats {

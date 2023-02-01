@@ -366,6 +366,7 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
   AddAllocation(current_.end_time);
 
   double duration = current_.end_time - current_.start_time;
+  
   int64_t duration_us =
       static_cast<int64_t>(duration * base::Time::kMicrosecondsPerMillisecond);
   auto* long_task_stats = heap_->isolate()->GetCurrentLongTaskStats();
@@ -421,6 +422,35 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
 void GCTracer::FinalizeCurrentEvent() {
   const bool is_young = Event::IsYoungGenerationEvent(current_.type);
 
+  double duration = current_.end_time - current_.start_time;
+  auto record =
+    [&](double duration) {
+      heap_->UpdateTotalMajorGCTime(duration);
+      int64_t gced = static_cast<int64_t>(current_.start_object_size) - current_.end_object_size;
+      std::cout
+        << "gc, name: " << heap_->name_
+        << " size: " << current_.start_object_size << " duration: " << duration << " speed: " << current_.start_object_size / duration
+        << " garbage collected: " << gced << " speed: " << gced / duration
+        << " heap limit: " << heap_->old_generation_allocation_limit() << " size before gc: " << current_.start_object_size << " guid: " << heap_->guid()
+        << std::endl;
+      auto bad = MakeBytesAndDuration(gced, duration);
+      CHECK(!heap_->major_gc_bad);
+      heap_->major_gc_bad = bad;
+      if (has_last_gc) {
+        // assumption broken due to incremental gc
+        // CHECK(current_.start_object_size >= last_gc_end_bytes);
+        CHECK(current_.end_time - last_gc_end_time - duration > 0);
+        auto bad = MakeBytesAndDuration(std::max<int64_t>(0,
+                                                          current_.start_object_size - last_gc_end_bytes + heap_->AllocatedExternalMemorySinceMarkCompact()),
+                                        current_.end_time - last_gc_end_time - duration);
+        CHECK(!heap_->major_allocation_bad);
+        heap_->major_allocation_bad = bad;
+      }
+      has_last_gc = true;
+      last_gc_end_bytes = current_.end_object_size;
+      last_gc_end_time = current_.end_time;
+    };
+  record(duration + current_.incremental_marking_duration);
   if (is_young) {
     FetchBackgroundMinorGCCounters();
   } else {

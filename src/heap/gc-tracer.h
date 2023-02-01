@@ -335,6 +335,13 @@ class V8_EXPORT_PRIVATE GCTracer {
   // and the final mark-compact step.
   double CombinedMarkCompactSpeedInBytesPerMillisecond();
 
+  // bytes = current_start.bytes - last_stop.bytes
+  // duration = current_stop.time - last_stop.time - gc.duration
+  // we do not use current_start.time - last_stop.time, as there is incremtnal gc.
+  bool has_last_gc = false;
+  size_t last_gc_end_bytes = 0;
+  double last_gc_end_time = 0;
+  
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
   double NewSpaceAllocationThroughputInBytesPerMillisecond(
