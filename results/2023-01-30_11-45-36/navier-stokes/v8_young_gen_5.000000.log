@@ -1,3 +1,0 @@
-b_initial_y_size_0	b_max_y_size_1	b_used_2	b_available_3	b_committed_4	a_used_5	a_available_6	a_committed_7	a_survived_8	a_promoted_9	a_copied_10	a_time_in_ns_11	promotion_rate_12
-15728640	15728640	5072640	0	10485760	480	5072160	10485760	162892	162412	0	201967	99	
-15728640	15728640	5072640	0	10485760	156	5072484	10485760	480	324	0	51733	67	
