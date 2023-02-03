@@ -56,7 +56,7 @@ rm v8_young_gen_*.log
 rm hello_world
 ninja -C out.gn/x64.release.sample v8_monolith
 ninja -C out.gn/x64.release.sample  v8_hello_world
-third_party/llvm-build/Release+Asserts/bin/clang++ /home/pranav/v8/src/out.gn/x64.release.sample/obj/v8_hello_world/hello-world.o /home/pranav/v8/src/out.gn/x64.release.sample/obj/libv8_monolith.a -o hello_world
+third_party/llvm-build/Release+Asserts/bin/clang++ out.gn/x64.release.sample/obj/v8_hello_world/hello-world.o out.gn/x64.release.sample/obj/libv8_monolith.a -o hello_world
 
 
 # #creating directory
