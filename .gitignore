@@ -91,6 +91,8 @@
 /xcodebuild
 GPATH
 GRTAGS
+hello_world
+semispace_size.txt
 GSYMS
 GTAGS
 TAGS
