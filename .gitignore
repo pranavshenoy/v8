@@ -45,6 +45,7 @@
 /Default/
 /out
 /out.gn
+/results
 /perf.data
 /perf.data.old
 /src/inspector/build/closure-compiler

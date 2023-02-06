@@ -1642,22 +1642,27 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
   const char* collector_reason = nullptr;
+
+  size_t allocated_external_memory_since_mark_compact = AllocatedExternalMemorySinceMarkCompact();
+  bool major = !IsYoungGenerationCollector(SelectGarbageCollector(space, &collector_reason));
+  size_t before_memory = OldGenerationSizeOfObjects();
+  auto before_time = time_in_nanoseconds();
+  /* For young gen*/
   json yg_json;
   yg_json["initial_young_gen_size"] = YoungGenerationSizeFromSemiSpaceSize(initial_semispace_size_);
   yg_json["max_young_gen_size"] = YoungGenerationSizeFromSemiSpaceSize(max_semi_space_size_);
   yg_json["before_total_young_used"] = new_space_->SizeOfObjects();
   yg_json["before_total_young_available"] = new_space_->Available();
   yg_json["before_total_young_committed"] = new_space_->CommittedMemory();
+  yg_json["before_time"] = before_time;
+  /* for young gen*/
   
 
+  bool result = CollectGarbageAux(space, gc_reason, gc_callback_flags);
+  auto after_time = time_in_nanoseconds();
 
-
-  size_t allocated_external_memory_since_mark_compact = AllocatedExternalMemorySinceMarkCompact();
-  bool major = !IsYoungGenerationCollector(SelectGarbageCollector(space, &collector_reason));
-  size_t before_memory = OldGenerationSizeOfObjects();
-  auto before_time = time_in_nanoseconds();
   /*For young gen*/
-  yg_json["before_time"] = before_time;
+  yg_json["after_time"] = after_time;
   yg_json["after_total_young_used"] = new_space_->SizeOfObjects();
   yg_json["after_total_young_available"] = new_space_->Available();
   yg_json["after_total_young_committed"] = new_space_->CommittedMemory();
@@ -1666,9 +1671,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
   yg_log_f << yg_json << std::endl;
   /*For young gen*/
 
-  bool result = CollectGarbageAux(space, gc_reason, gc_callback_flags);
-  auto after_time = time_in_nanoseconds();
-  yg_json["after_time"] = after_time;
   size_t after_memory = OldGenerationSizeOfObjects();
   // sometimes working memory may be bigger. need this max to fix it.
   size_t max_memory = std::max(old_generation_allocation_limit(), after_memory);

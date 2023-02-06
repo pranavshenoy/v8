@@ -4,7 +4,7 @@
 rm v8-run-*.log
 rm v8_young_gen_*.log
 rm hello_world
-# set -e 
+set -e 
 export SEMISPACE_SIZE=1 SKIP_RECOMPUTE_LIMIT=1 SKIP_MEMORY_REDUCER=1 USE_MEMBALANCER=1 LOG_DIRECTORY="/" LOG_GC="1" C_VALUE="1";
 ninja -C out.gn/x64.release.sample v8_monolith
 ninja -C out.gn/x64.release.sample  v8_hello_world
