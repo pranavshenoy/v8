@@ -2445,7 +2445,7 @@ class Heap {
 public:
   // also touch global allocation limit
   void update_heap_limit(size_t new_limit);
-  std::ofstream gc_log_f;
+  std::ofstream gc_log_f, yg_log_f;
   Timer memory_log_timer;
   // for monitoring purpose only
   std::string name_;

@@ -28,13 +28,9 @@ do
     echo "Running Test: "$dir_name
     for i in "${initial_semispace_size_factor[@]}";
     do 
-        # echo "      semispace_size_factor: "$i
-        # rm "semispace_size.txt"
-        # echo $i >> "semispace_size.txt"
-        # ./hello_world $bm
         export SEMISPACE_SIZE=$i SKIP_RECOMPUTE_LIMIT=1 SKIP_MEMORY_REDUCER=1 USE_MEMBALANCER=1 LOG_DIRECTORY=$full_path LOG_GC="1" C_VALUE="1";  bash -c "./hello_world $bm"
-        mv v8_young_gen_*.log $full_path
-        mv v8-custom-log.log $full_path
+        # mv v8_young_gen_*.log $full_path
+        # mv v8-custom-log.log $full_path
     done
 done
 # echo "Plotting charts"
