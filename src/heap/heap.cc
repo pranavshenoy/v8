@@ -156,6 +156,7 @@ CollectionEpoch next_epoch() {
 }
 }  // namespace
 
+
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
   return reinterpret_cast<Isolate*>(
@@ -249,15 +250,29 @@ inline std::string get_env(const std::string& env_name) {
   return ret ? std::string(ret) : std::string();
 }
 
+inline int get_semispace_size() {
+
+  std::string semispace_size_str = get_env("SEMISPACE_SIZE");
+  std::cout<<semispace_size_str<<std::endl;
+  // CHECK(!semispace_size_str.empty());
+  std::istringstream os(semispace_size_str);
+  int c;
+  os >> c;
+  return c;
+}
+
 inline bool use_membalancer() {
+  std::cout<<"USE_MEMBALANCER: "<<get_env("USE_MEMBALANCER")<<std::endl;
   return get_env("USE_MEMBALANCER") == "1";
 }
 
 inline std::string get_log_directory() {
+  std::cout<<"LOG_DIRECTORY: "<<get_env("LOG_DIRECTORY")<<std::endl;
   return get_env("LOG_DIRECTORY");
 }
 
 inline bool log_gc() {
+  std::cout<<"LOG_GC: "<<get_env("LOG_GC")<<std::endl;
   return get_env("LOG_GC") == "1";
 }
 
@@ -285,8 +300,7 @@ Heap::Heap()
       safepoint_(new GlobalSafepoint(this)),
       external_string_table_(this),
       collection_barrier_(new CollectionBarrier(this)),
-      gc_log_f(get_log_directory() + guid() + ".gc.log"),
-      memory_log_f(get_log_directory() + guid() + ".memory.log") {
+      gc_log_f(get_log_directory() + "gc_log_" + std::to_string(get_semispace_size())  + ".log") {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
 
@@ -1636,6 +1650,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   size_t after_memory = OldGenerationSizeOfObjects();
   // sometimes working memory may be bigger. need this max to fix it.
   size_t max_memory = std::max(old_generation_allocation_limit(), after_memory);
+  std::cout<<"gc type: "<< major<< std::endl;
   if (major) {
     L = after_memory;
     json j;
@@ -1688,7 +1703,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
         j["Limit"] = old_generation_allocation_limit();
         j["time"] = time;
         j["guid"] = guid();
-        memory_log_f << j << std::endl;
         double k = 0.95;
         g_bytes = g_bytes * k + std::max<double>(0, memory - last_M_memory) * (1 - k);
         g_time = g_time * k + (time - last_M_update_time) * (1 - k);
@@ -4788,8 +4802,15 @@ size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
 }  // anonymous namespace
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
+  
+  use_membalancer();
+  get_log_directory();
+  log_gc();
+
+  int semispace_size_factor = get_semispace_size();
   // Initialize max_semi_space_size_.
   {
+
     max_semi_space_size_ = 8 * (kSystemPointerSize / 4) * MB;
     if (constraints.max_young_generation_size_in_bytes() > 0) {
       max_semi_space_size_ = SemiSpaceSizeFromYoungGenerationSize(
@@ -4816,6 +4837,11 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
     }
+    
+    //Pranav - Custom Change -- Start
+    max_semi_space_size_ = semispace_size_factor * kMinSemiSpaceSize;
+    //Pranav - Custom Change -- End
+
     // TODO(dinfuehr): Rounding to a power of 2 is not longer needed. Remove it.
     max_semi_space_size_ =
         static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
@@ -4880,6 +4906,10 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       initial_semispace_size_ =
           static_cast<size_t>(FLAG_min_semi_space_size) * MB;
     }
+    //Pranav - Custom Change -- Start
+    initial_semispace_size_ = semispace_size_factor * kMinSemiSpaceSize;
+    //Pranav - Custom Change -- End
+
     initial_semispace_size_ =
         std::min(initial_semispace_size_, max_semi_space_size_);
     initial_semispace_size_ =
